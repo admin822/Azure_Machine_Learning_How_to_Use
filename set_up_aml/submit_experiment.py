@@ -3,11 +3,11 @@ from azureml.core import Experiment
 from azureml.core import Environment
 from azureml.core import ScriptRunConfig
 from azureml.core import Dataset
-from datetime import datetime
+import os
 from util import _establish_connection_to_aml_workspace,_get_compute_target
 
 
-def _create_running_config(ws:Workspace,path_to_dataset_in_datastore,compute_target_name,env_name):
+def _create_running_config(ws:Workspace,path_to_dataset_in_datastore,compute_target_name,env_name,model_save_path):
     try:
         module_root_folder_path=r'online_training'
         compute_target=_get_compute_target(ws,compute_target_name)
@@ -21,7 +21,8 @@ def _create_running_config(ws:Workspace,path_to_dataset_in_datastore,compute_tar
         environment=module_env,
         arguments=[
             "--data_path",dataset.as_mount(),
-            "--batch_size",32
+            "--batch_size",32,
+            "--model_path",model_save_path
         ]
         )
         print("running config created!")
@@ -30,26 +31,42 @@ def _create_running_config(ws:Workspace,path_to_dataset_in_datastore,compute_tar
         raise e
 
 
-def submit_experiment(path_to_dataset_in_datastore,compute_target_name,experiment_name,env_name,model_name):
+def submit_experiment(path_to_dataset_in_datastore,compute_target_name,experiment_name,env_name,model_name,model_save_path):
     try:
         ws=_establish_connection_to_aml_workspace()
     except Exception as e:
         raise e
     try:
         experiment=Experiment(workspace=ws,name=experiment_name)
-        running_config=_create_running_config(ws,path_to_dataset_in_datastore,compute_target_name,env_name)
+        running_config=_create_running_config(ws,path_to_dataset_in_datastore,compute_target_name,env_name,model_save_path)
         
         ############### submit experiment and get url ################
         run=experiment.submit(running_config)
-        print(run.get_portal_url())
+        url=run.get_portal_url()
+        print("The details for this experiment is here:\n {}".format(url))
         run.wait_for_completion()
-        print("Experiment run has completed")
+        print("Experiment run has completed, Note:This message does NOT suggetst your experiment is successful, go to {} to find out logs and status for your experiment".format(url))
         ############### submit experiment and get url ################
-
-
-
     except Exception as e:
+        print("Submit Experiment failed!")
         raise e
+    try:
+        ############### register model ######################
+        run.register_model(model_name=model_name,model_path=os.path.join(model_save_path,'saved_model.pt'))
+    except Exception as e:
+        print("Failed to register due to {}!".format(e))
+
+    
+        
+
+
+
 
 if __name__ == "__main__":
-    submit_experiment('dummy/dummy_data_file',"testConfDSVM","test_trial1","confidential_test",None)
+    submit_experiment(path_to_dataset_in_datastore='dummy/dummy_data_file',
+                compute_target_name="testConfDSVM", 
+                # compute_target_name="StandardCompute",
+                experiment_name="test_trial1",
+                env_name="confidential_test",
+                model_name="dummy_test_model",
+                model_save_path='./outputs')
