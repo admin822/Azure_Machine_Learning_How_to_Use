@@ -1,4 +1,6 @@
+from threading import main_thread
 from azureml.core import Workspace
+from azureml.core.model import Model
 from azureml.core.compute import ComputeTarget, AmlCompute
 from azureml.core.compute_target import ComputeTargetException
 
@@ -15,3 +17,8 @@ def _get_compute_target(ws,compute_target_name):
         return compute_target
     except Exception as e:
         raise e
+
+def _get_list_of_models(ws,name=None):
+    return Model.list(workspace=ws,name=name)
+
+

@@ -1,0 +1,12 @@
+name: testConfidentialDeployment
+channels:
+    - defaults
+    - pytorch
+dependencies:
+    - python=3.7.4
+    - pytorch
+    - torchvision
+    - pandas
+    - pip:
+      - azureml-sdk
+      - azureml-defaults>=1.0.45
